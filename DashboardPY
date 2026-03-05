@@ -12,15 +12,15 @@ df = matches.copy()
 df["Fecha"] = pd.to_datetime(df["Fecha"])
 df = df.sort_values("Fecha")
 
-cibao = df[df["Equipo"] == "Cibao"].copy()
+[nombre] = df[df["Equipo"] == "nombre"].copy()
 
-rivals = df[df["Equipo"] != "Cibao"][["Match_ID", "Equipo"]]
+rivals = df[df["Equipo"] != "nombre"][["Match_ID", "Equipo"]]
 rivals = rivals.rename(columns={"Equipo": "Rival"})
-cibao = cibao.merge(rivals, on="Match_ID", how="left")
+nombre = nombre.merge(rivals, on="Match_ID", how="left")
 
-cibao["Label"] = cibao["Fecha"].dt.strftime("%Y-%m-%d") + " - " + cibao["Rival"]
+nombre["Label"] = nombre["Fecha"].dt.strftime("%Y-%m-%d") + " - " + nombre["Rival"]
 
-rival_df = df[df["Equipo"] != "Cibao"].copy()
+rival_df = df[df["Equipo"] != "nombre"].copy()
 rival_df["Label"] = rival_df["Fecha"].dt.strftime("%Y-%m-%d") + " - " + rival_df["Equipo"]
 
 # ======================
@@ -43,7 +43,7 @@ app.layout = html.Div(
     children=[
 
     html.H1(
-        "CIBAO FC – 09/08/25-08/02/2026",
+        "TITULO",
         style={"textAlign": "center", "color": "#F39C12"}
     ),
 
@@ -100,7 +100,7 @@ app.layout = html.Div(
 )
 def update_charts(metric, metric_x, metric_y):
 
-    mean_cibao = cibao[metric].mean()
+    mean_nombre = nombre[metric].mean()
 
     # ======================
     # GRÁFICO 1 – LINEAL
@@ -108,10 +108,10 @@ def update_charts(metric, metric_x, metric_y):
     fig_line = go.Figure()
 
     fig_line.add_trace(go.Scatter(
-        x=cibao["Label"],
-        y=cibao[metric],
+        x=nombre["Label"],
+        y=nombre[metric],
         mode="lines+markers",
-        name="Cibao",
+        name="nombre",
         line=dict(color="#F39C12", width=3)
     ))
 
@@ -124,7 +124,7 @@ def update_charts(metric, metric_x, metric_y):
     ))
 
     fig_line.add_hline(
-        y=mean_cibao,
+        y=mean_nombre,
         line_dash="dash",
         line_color="red"
     )
@@ -143,16 +143,16 @@ def update_charts(metric, metric_x, metric_y):
     fig_scatter = go.Figure()
 
     fig_scatter.add_trace(go.Scatter(
-        x=cibao[metric_x],
-        y=cibao[metric_y],
+        x=nombre[metric_x],
+        y=nombre[metric_y],
         mode="markers",  # quitamos texto para evitar superposición
         marker=dict(
             size=12,
             color="#F39C12",
             line=dict(color="white", width=1)
         ),
-        name="Cibao",
-        hovertext=cibao["Label"],  # info solo al pasar el mouse
+        name="nombre",
+        hovertext=nombre["Label"],  # info solo al pasar el mouse
         hovertemplate="<b>%{hovertext}</b><br>" +
                       f"{metric_x}: "+"%{x}<br>" +
                       f"{metric_y}: "+"%{y}<extra></extra>"
@@ -160,13 +160,13 @@ def update_charts(metric, metric_x, metric_y):
 
     # Líneas medias
     fig_scatter.add_hline(
-        y=cibao[metric_y].mean(),
+        y=nombre[metric_y].mean(),
         line_color="red",
         line_dash="dash"
     )
 
     fig_scatter.add_vline(
-        x=cibao[metric_x].mean(),
+        x=nombre[metric_x].mean(),
         line_color="red",
         line_dash="dash"
     )
