@@ -1,0 +1,186 @@
+# IMPORTS
+# ======================
+import pandas as pd
+import plotly.graph_objects as go
+from jupyter_dash import JupyterDash
+from dash import html, dcc, Input, Output
+
+# ======================
+# PREPARAR DATOS
+# ======================
+df = matches.copy()
+df["Fecha"] = pd.to_datetime(df["Fecha"])
+df = df.sort_values("Fecha")
+
+cibao = df[df["Equipo"] == "Cibao"].copy()
+
+rivals = df[df["Equipo"] != "Cibao"][["Match_ID", "Equipo"]]
+rivals = rivals.rename(columns={"Equipo": "Rival"})
+cibao = cibao.merge(rivals, on="Match_ID", how="left")
+
+cibao["Label"] = cibao["Fecha"].dt.strftime("%Y-%m-%d") + " - " + cibao["Rival"]
+
+rival_df = df[df["Equipo"] != "Cibao"].copy()
+rival_df["Label"] = rival_df["Fecha"].dt.strftime("%Y-%m-%d") + " - " + rival_df["Equipo"]
+
+# ======================
+# MÉTRICAS
+# ======================
+metricas = [
+"xG","Goles","Tiros","Tiros_porteria","Pases","Pases_logrados",
+"Posesión%","Balones_Perdidos","Balones_Recuperados",
+"Duelos_Ganados","Interceptaciones","Despejes",
+"Pases_progresivos","PPDA"
+]
+
+# ======================
+# DASH
+# ======================
+app = JupyterDash(__name__)
+
+app.layout = html.Div(
+    style={"backgroundColor": "#0d1117", "color": "white", "padding": "20px"},
+    children=[
+
+    html.H1(
+        "CIBAO FC – 09/08/25-08/02/2026",
+        style={"textAlign": "center", "color": "#F39C12"}
+    ),
+
+    html.Div([
+        html.Label("Seleccionar Métrica (Gráfico 1)"),
+        dcc.Dropdown(
+            id="metric",
+            options=[{"label": m, "value": m} for m in metricas],
+            value="xG",
+            style={"color": "black"}
+        )
+    ], style={"width": "50%", "margin": "auto"}),
+
+    html.Br(),
+
+    # FILTROS GRÁFICO 2
+    html.Div([
+        html.Div([
+            html.Label("Eje X"),
+            dcc.Dropdown(
+                id="metric_x",
+                options=[{"label": m, "value": m} for m in metricas],
+                value="xG",
+                style={"color": "black"}
+            )
+        ], style={"width": "45%", "display": "inline-block"}),
+
+        html.Div([
+            html.Label("Eje Y"),
+            dcc.Dropdown(
+                id="metric_y",
+                options=[{"label": m, "value": m} for m in metricas],
+                value="Goles",
+                style={"color": "black"}
+            )
+        ], style={"width": "45%", "float": "right", "display": "inline-block"})
+    ]),
+
+    html.Br(),
+    dcc.Graph(id="line_chart"),
+    html.Br(),
+    dcc.Graph(id="scatter_chart")
+])
+
+# ======================
+# CALLBACK
+# ======================
+@app.callback(
+    Output("line_chart", "figure"),
+    Output("scatter_chart", "figure"),
+    Input("metric", "value"),
+    Input("metric_x", "value"),
+    Input("metric_y", "value")
+)
+def update_charts(metric, metric_x, metric_y):
+
+    mean_cibao = cibao[metric].mean()
+
+    # ======================
+    # GRÁFICO 1 – LINEAL
+    # ======================
+    fig_line = go.Figure()
+
+    fig_line.add_trace(go.Scatter(
+        x=cibao["Label"],
+        y=cibao[metric],
+        mode="lines+markers",
+        name="Cibao",
+        line=dict(color="#F39C12", width=3)
+    ))
+
+    fig_line.add_trace(go.Scatter(
+        x=rival_df["Label"],
+        y=rival_df[metric],
+        mode="lines+markers",
+        name="Rival",
+        line=dict(color="#3498DB", width=3)
+    ))
+
+    fig_line.add_hline(
+        y=mean_cibao,
+        line_dash="dash",
+        line_color="red"
+    )
+
+    fig_line.update_layout(
+        template="plotly_dark",
+        title=f"Evolución de {metric} por Partido",
+        xaxis_tickangle=-45,
+        xaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=False)
+    )
+
+    # ======================
+    # GRÁFICO 2 – SCATTER
+    # ======================
+    fig_scatter = go.Figure()
+
+    fig_scatter.add_trace(go.Scatter(
+        x=cibao[metric_x],
+        y=cibao[metric_y],
+        mode="markers",  # quitamos texto para evitar superposición
+        marker=dict(
+            size=12,
+            color="#F39C12",
+            line=dict(color="white", width=1)
+        ),
+        name="Cibao",
+        hovertext=cibao["Label"],  # info solo al pasar el mouse
+        hovertemplate="<b>%{hovertext}</b><br>" +
+                      f"{metric_x}: "+"%{x}<br>" +
+                      f"{metric_y}: "+"%{y}<extra></extra>"
+    ))
+
+    # Líneas medias
+    fig_scatter.add_hline(
+        y=cibao[metric_y].mean(),
+        line_color="red",
+        line_dash="dash"
+    )
+
+    fig_scatter.add_vline(
+        x=cibao[metric_x].mean(),
+        line_color="red",
+        line_dash="dash"
+    )
+
+    fig_scatter.update_layout(
+        template="plotly_dark",
+        title=f"{metric_y} vs {metric_x}",
+        xaxis_title=metric_x,
+        yaxis_title=metric_y,
+        xaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=False)
+    )
+
+    return fig_line, fig_scatter
+
+
+app.run_server(mode="inline", debug=True)
